@@ -46,63 +46,73 @@ def getSpectra(objID, wave=True, nPixel=8575):
     except IndexError:
         print filename, out
         foo = np.zeros(nPixel)
-        foo.fill(np.nan) 
+        foo.fill(np.nan)
         return foo, foo, foo
 
-plot=False
-data = fits.getdata('allStar-l30e.2.fits')
+def getData(plot=False):
+    try:
+        specMatrix = np.load('specMatrix.npy')
+        print 'read in npy matrix'
 
-good = data['LOGG'] != -9999.0
+    except IOError:
+        data = fits.getdata('allStar-l30e.2.fits')
 
-#define inital box
-Lmin = 2
-Lmax = 3.2
-Tmin = 4200
-Tmax = 5500
-rc = (data['TEFF'] > Tmin) & (data['TEFF'] < Tmax) & (data['LOGG'] > Lmin) & (data['LOGG'] < Lmax)
+        #define inital box
+        Lmin = 2
+        Lmax = 3.2
+        Tmin = 4200
+        Tmax = 5500
+        rc = (data['TEFF'] > Tmin) & (data['TEFF'] < Tmax) & (data['LOGG'] > Lmin) & (data['LOGG'] < Lmax)
 
-#define zoom of inital box
-LminZ = 2.38
-LmaxZ = 2.42
-TminZ = 4650
-TmaxZ = 4700
-rcZoom = (data['TEFF'] > TminZ) & (data['TEFF'] < TmaxZ) & (data['LOGG'] > LminZ) & (data['LOGG'] < LmaxZ)
+        #define zoom of inital box
+        LminZ = 2.38
+        LmaxZ = 2.42
+        TminZ = 4650
+        TmaxZ = 4700
+        rcZoom = (data['TEFF'] > TminZ) & (data['TEFF'] < TmaxZ) & (data['LOGG'] > LminZ) & (data['LOGG'] < LmaxZ)
 
-if plot:
-    fig, ax = figsizemargins.makeFigureInstance(x=3, y=1, wspace=0.75)
-    ax[0].plot(data['TEFF'][good], data['LOGG'][good], 'ko', ms=1, rasterized=True, alpha=0.05, zorder=0)
-    ax[0].add_patch(patches.Rectangle((Tmin, Lmin), Tmax-Tmin, Lmax-Lmin, fill=False, linewidth=1, zorder=1, color='#1f77b4'))
-    ax[1].scatter(data['TEFF'][rc], data['LOGG'][rc], c='k', s=1, rasterized=True, alpha=0.05, zorder=0)
-    ax[1].add_patch(patches.Rectangle((TminZ, LminZ), TmaxZ-TminZ, LmaxZ-LminZ, fill=False, linewidth=1, zorder=1, color='#1f77b4'))
-    ax[2].scatter(data['TEFF'][rcZoom], data['LOGG'][rcZoom], c = 'k', s=1, alpha=0.1, zorder=0)
-
-    for axis in ax:
-        axis.invert_xaxis()
-        axis.invert_yaxis()
-        axis.set_xlabel('Teff [K]')
-        axis.set_ylabel('log g')
-        #axis.grid(zorder=2)
-    fig.savefig('apogeeTeffLogg.pdf', dpi=400)
-    plt.close(fig)
-
-try: 
-    specMatrix = np.load('specMatrix.npy')
-    print 'read in npy matrix'
-
-except IOError:
-
-    nstars = np.sum(rcZoom)
-    nPixels = 8575
-    specMatrix = np.zeros((nstars, nPixels))
-
-    for i, index in enumerate(np.where(rcZoom)[0]):
-        objID = data['APSTAR_ID'][index].split('.')[-1]
-        spec, err, fit = getSpectra(objID, wave=False)
-        specMatrix[i] = spec
         if plot:
-            plotSpec(wave, spec, fit, err)
+            fig, ax = figsizemargins.makeFigureInstance(x=3, y=1, wspace=0.75)
+            ax[0].plot(data['TEFF'][good], data['LOGG'][good], 'ko', ms=1, rasterized=True, alpha=0.05, zorder=0)
+            ax[0].add_patch(patches.Rectangle((Tmin, Lmin), Tmax-Tmin, Lmax-Lmin, fill=False, linewidth=1, zorder=1, color='#1f77b4'))
+            ax[1].scatter(data['TEFF'][rc], data['LOGG'][rc], c='k', s=1, rasterized=True, alpha=0.05, zorder=0)
+            ax[1].add_patch(patches.Rectangle((TminZ, LminZ), TmaxZ-TminZ, LmaxZ-LminZ, fill=False, linewidth=1, zorder=1, color='#1f77b4'))
+            ax[2].scatter(data['TEFF'][rcZoom], data['LOGG'][rcZoom], c = 'k', s=1, alpha=0.1, zorder=0)
 
-    np.save('specMatrix', specMatrix)
+            for axis in ax:
+                axis.invert_xaxis()
+                axis.invert_yaxis()
+                axis.set_xlabel('Teff [K]')
+                axis.set_ylabel('log g')
+                #axis.grid(zorder=2)
+            fig.savefig('apogeeTeffLogg.pdf', dpi=400)
+            plt.close(fig)
+
+        nstars = np.sum(rcZoom)
+        nPixels = 8575
+        specMatrix = np.zeros((nstars, nPixels))
+
+        for i, index in enumerate(np.where(rcZoom)[0]):
+            objID = data['APSTAR_ID'][index].split('.')[-1]
+            spec, err, fit = getSpectra(objID, wave=False)
+            specMatrix[i] = spec
+            if plot:
+                plotSpec(wave, spec, fit, err)
+
+        np.save('specMatrix', specMatrix)
+
+def kurtosis(w, dataArray):
+    q = np.dot(w, dataArray)
+    qAvg = np.mean(q)
+    diff_sq = (q-qAvg)**2.
+    return len(dataArray)*np.sum(diff_sq**2.)/(np.sum(diff_sq))**2.
+
+data = getData()
+
+nPixels = 8575
+nstar = len(data)
+w = np.random.normal(size=(nstar, nPixels))
+kurtosis(w, data)
 
 print 'calculating SVD'
 U ,s, V = np.linalg.svd(specMatrix)
