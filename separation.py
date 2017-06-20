@@ -140,10 +140,14 @@ def minimize_kurtosis(dataArray):
 def pca(dataArray):
     U, s, V = np.linalg.svd(dataArray)
 
-data = getData()
-filename = 'DeepLearningCatalogue_TestSet_.txt'
-names = ['kic', 'pop', 'delta_nu', 'nu_max', 'epsilon']
-pop = np.genfromtxt(filename, names=names)
+def regression(dataArray):
 
+    filename = 'DeepLearningCatalogue_TestSet_.txt'
+    names = ['kic', 'pop', 'delta_nu', 'nu_max', 'epsilon']
+    pop = np.genfromtxt(filename, names=names)
+
+if __name__ == '__main__':
+    data = getData()
+    minimize_kurtosis(data)
 #minimize_kurtosis(data)
 #pca(data)
