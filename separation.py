@@ -147,8 +147,8 @@ def regression(dataArray):
     pop = np.genfromtxt(filename, names=names)
 
 if __name__ == '__main__':
-    import matplotlib as mpl
-    mpl.switch_backend('pdf')
+
+    plt.switch_backend('pdf')
 
     data = getData()
     minimize_kurtosis(data)
