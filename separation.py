@@ -5,6 +5,8 @@ import figsizemargins
 import matplotlib.patches as patches
 import astropy.io.fits as io
 import glob
+from scipy.stats import kurtosis
+import scipy.optimize as op
 
 def plotSpec(wave, spec, fit, err):
     ratio = fit/spec
@@ -100,21 +102,48 @@ def getData(plot=False):
                 plotSpec(wave, spec, fit, err)
 
         np.save('specMatrix', specMatrix)
+    bad = ~np.isfinite(specMatrix)
+    specMatrix[bad] = 1.0
+    #specMatrixIvar[bad] = 0.
+    return specMatrix #, specMatrixIvar
 
-def kurtosis(w, dataArray):
-    q = np.dot(w, dataArray)
-    qAvg = np.mean(q)
-    diff_sq = (q-qAvg)**2.
-    return len(dataArray)*np.sum(diff_sq**2.)/(np.sum(diff_sq))**2.
+def my_kurtosis(w, dataArray, plotName=None):
+    q = np.dot(dataArray, w)
+    if plotName is not None:
+        plt.clf()
+        plt.hist(q, histtype='step', bins=128)
+        plt.xlabel('q')
+        plt.savefig(plotName)
+    return kurtosis(q)
+
+def minimize_kurtosis(dataArray):
+    nPixels = 8575
+    nstar = len(data)
+    np.random.seed(42)
+    bestkurtosis = np.Inf
+    for j in range(256):
+        w = np.random.normal(size=nPixels)
+        w = w / np.sqrt(np.dot(w, w))
+        k = my_kurtosis(w, data)
+        if k < bestkurtosis:
+            print("kicking it", j, k)
+            bestkurtosis = k
+            bestw = w
+    my_kurtosis(bestw, data, plotName='starthist.png')
+    res = op.minimize(my_kurtosis, bestw, args=(data, ), method="Nelder-Mead")
+    print(res)
+    betterw = res["x"]
+
+    my_kurtosis(betterw, data, plotName='endhist.png')
+    np.save('optimizeKurtosis', res)
+
+def pca(dataArray):
+    U, s, V = np.linalg.svd(dataArray)
 
 data = getData()
+filename = 'DeepLearningCatalogue_TestSet_.txt'
+names = ['kic', 'pop', 'delta_nu', 'nu_max', 'epsilon']
+pop = np.genfromtxt(filename, names=names)
 
-nPixels = 8575
-nstar = len(data)
-w = np.random.normal(size=(nstar, nPixels))
-kurtosis(w, data)
-
-print 'calculating SVD'
-U ,s, V = np.linalg.svd(specMatrix)
-
-print 'length of rcZoom: ', np.sum(rcZoom)
+#minimize_kurtosis(data)
+#pca(data)
